@@ -13,19 +13,19 @@ int main() {
 	std::string word = "Apple";	
 
 
-	string line;
+	std::string line;
+	int count = 0;
 	if (std::getline(infile, line)) {
-		int count = 0;
-		std::size_t found = s.find(word, 0); // first occurrence
-		while (found != string::npos) {
+		std::size_t found = line.find(word, 0); // first occurrence
+		while (found != std::string::npos) {
 			count++;
-			found = s.find(word, found+1); // next occurrence
+			found = line.find(word, found+1); // next occurrence
 		}		
 	} else {
 		std::cout << "Error reading in string" << std::endl;	
 	}
 
-	std::cout << count;
+	std::cout << count << std::endl;
 
 
 

@@ -252,10 +252,22 @@ int main(int argc, char **argv) {
   // loop through params and set params that are given
   for (int i = 0; i < params.size(); i++) {
     if (params[i] == "PERIOD_FETCH") {
+      if (stoi(values[i]) < 1) {
+        cout << "PERIOD_FETCH must be larger than 1" << endl;
+        exit(1);
+      }
       PERIOD_FETCH = stoi(values[i]);
     } else if (params[i] == "NUM_FETCH") {
+      if (stoi(values[i]) < 1 || stoi(values[i]) > 8) {
+        cout << "NUM_FETCH out of range" << endl;
+        exit(1);
+      }
       NUM_FETCH = stoi(values[i]);
     } else if (params[i] == "NUM_PARSE") {
+      if (stoi(values[i]) < 1 || stoi(values[i]) > 8) {
+        cout << "NUM_PARSE out of range" << endl;
+        exit(1);
+      }
       NUM_PARSE = stoi(values[i]);
     } else if (params[i] == "SEARCH_FILE") {
       SEARCH_FILE = values[i];
@@ -271,13 +283,15 @@ int main(int argc, char **argv) {
   readFileWrapper searchTermList(SEARCH_FILE);
   searchTermList.readFile();
   vector<string> searchTerms = searchTermList.getLines();
-  writeCSVWrapper outputFile("example.csv");
-  outputFile.init();
   vector<MemoryStruct> curlResults;
-  int running = 1;
+  int counter = 0;
 
   // main program loop
-  while (running) {
+  while (1) {
+    counter++;
+    string csvFileName = to_string(counter) + ".csv";
+    writeCSVWrapper outputFile(csvFileName);
+    outputFile.init();
     vector<int> countResults;
     vector<string> curlResultsAsString;
     for (int i = 0; i < sites.size(); i++) {
@@ -299,11 +313,11 @@ int main(int argc, char **argv) {
         outputFile.writeLine("time", searchTerms[k], sites[j], countResults[j + k]);
       }
     }
-    running = 0;
     sleep(PERIOD_FETCH);
   }
 
   // debug output
+  /*
   cout << PERIOD_FETCH << endl;
   cout << NUM_FETCH << endl;
   cout << NUM_PARSE << endl;
@@ -315,6 +329,8 @@ int main(int argc, char **argv) {
   for (int i = 0; i < sites.size(); i++) {
     cout << sites[i] << endl;
   }
+  */
+  // free memory
   for (int i = 0; i < curlResults.size(); i++) {
     free(curlResults[i].memory);
   }

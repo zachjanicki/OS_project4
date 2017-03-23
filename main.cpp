@@ -270,17 +270,36 @@ int main(int argc, char **argv) {
   readFileWrapper searchTermList(SEARCH_FILE);
   searchTermList.readFile();
   vector<string> searchTerms = searchTermList.getLines();
-  struct MemoryStruct curlInfo = runCurl("http://example.com");
-  string curlResult = curlInfo.memory;
   writeCSVWrapper outputFile("example.csv");
   outputFile.init();
 
   // main program loop
-  /*
+  vector<MemoryStruct> curlResults;
   while (1) {
-
+    vector<int> countResults;
+    vector<string> curlResultsAsString;
+    for (int i = 0; i < sites.size(); i++) {
+      // put one curling job into a thread and output to vector
+      cout << sites[i] << endl;
+      curlResults.push_back(runCurl(sites[i]));
+      curlResultsAsString.push_back(curlResults[i].memory);
+      free(curlResults[i].memory);
+    }
+    for (int i = 0; i < curlResultsAsString.size(); i++) {
+      for (int j = 0; j < searchTerms.size(); i++) {
+        cout << "no segfault yet" << endl;
+        countResults.push_back(wordCount(curlResultsAsString[i], searchTerms[j]));
+        // every n search terms (# of total search terms, there is a new site)
+      }
+    }
+    for (int i = 0; i < countResults.size(); i++) {
+      for (int j = 0; j < sites.size(); j++) {
+        for (int k = 0; k < searchTerms.size(); k++) {
+          outputFile.writeLine("time", searchTerms[k], sites[j], countResults[i*searchTerms.size() + k]);
+        }
+      }
+    }
   }
-  */
 
   // debug output
   cout << PERIOD_FETCH << endl;
@@ -294,6 +313,4 @@ int main(int argc, char **argv) {
   for (int i = 0; i < sites.size(); i++) {
     cout << sites[i] << endl;
   }
-  cout << wordCount(curlResult, "example") << endl;
-  free(curlInfo.memory);
 }

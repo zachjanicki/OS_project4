@@ -34,7 +34,7 @@ public:
 
   void parse() {
     vector<string> linesVec = lines;
-    for (int i = 0; i < linesVec.size(); i++) {
+    for (size_t i = 0; i < linesVec.size(); i++) {
       stringstream tempStream(linesVec[i]);
       vector<string> paramAndValue;
       string temp;
@@ -59,7 +59,7 @@ public:
     // check to make sure SEARCH_FILE and SITE_FILE are given
     int searchFileFlag = 0;
     int siteFileFlag = 0;
-    for (int i = 0; i < params.size(); i++) {
+    for (size_t i = 0; i < params.size(); i++) {
       if (params[i] == "SEARCH_FILE") {
         searchFileFlag = 1;
       }
@@ -136,8 +136,7 @@ struct MemoryStruct {
 };
 
 static size_t
-WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
-{
+WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
   size_t realsize = size * nmemb;
   struct MemoryStruct *mem = (struct MemoryStruct *)userp;
 
@@ -189,6 +188,7 @@ struct MemoryStruct runCurl(string url) {
   if(res != CURLE_OK) {
     fprintf(stderr, "curl_easy_perform() failed: %s\n",
             curl_easy_strerror(res));
+	exit(1);
   }
   else {
     /*
@@ -200,7 +200,7 @@ struct MemoryStruct runCurl(string url) {
     curl_easy_cleanup(curl_handle);
     curl_global_cleanup();
     printf("%lu bytes retrieved\n", (long)chunk.size);
-    return chunk;
+    //return chunk;
   }
 
   /* cleanup curl stuff */
@@ -211,6 +211,7 @@ struct MemoryStruct runCurl(string url) {
   /* we're done with libcurl, so clean it up */
 
   //return 0;
+  return chunk;
 }
 
 
@@ -250,7 +251,7 @@ int main(int argc, char **argv) {
   vector<string> params = configFile.getParams();
   vector<string> values = configFile.getValues();
   // loop through params and set params that are given
-  for (int i = 0; i < params.size(); i++) {
+  for (size_t i = 0; i < params.size(); i++) {
     if (params[i] == "PERIOD_FETCH") {
       if (stoi(values[i]) < 1) {
         cout << "PERIOD_FETCH must be larger than 1" << endl;
@@ -294,22 +295,22 @@ int main(int argc, char **argv) {
     outputFile.init();
     vector<int> countResults;
     vector<string> curlResultsAsString;
-    for (int i = 0; i < sites.size(); i++) {
+    for (size_t i = 0; i < sites.size(); i++) {
       // put one curling job into a thread and output to vector
       cout << sites[i] << endl;
       curlResults.push_back(runCurl(sites[i]));
       curlResultsAsString.push_back(curlResults[i].memory);
     }
-    for (int i = 0; i < curlResultsAsString.size(); i++) {
-      for (int j = 0; j < searchTerms.size(); j++) {
+    for (size_t i = 0; i < curlResultsAsString.size(); i++) {
+      for (size_t j = 0; j < searchTerms.size(); j++) {
         int c = wordCount(curlResultsAsString[i], searchTerms[j]);
         countResults.push_back(c);
         // every n search terms (# of total search terms, there is a new site)
       }
     }
     cout << "count results.size " << countResults.size() << endl;
-    for (int j = 0; j < sites.size(); j++) {
-      for (int k = 0; k < searchTerms.size(); k++) {
+    for (size_t j = 0; j < sites.size(); j++) {
+      for (size_t k = 0; k < searchTerms.size(); k++) {
         outputFile.writeLine("time", searchTerms[k], sites[j], countResults[j + k]);
       }
     }
@@ -331,7 +332,7 @@ int main(int argc, char **argv) {
   }
   */
   // free memory
-  for (int i = 0; i < curlResults.size(); i++) {
+  for (size_t i = 0; i < curlResults.size(); i++) {
     free(curlResults[i].memory);
   }
 }

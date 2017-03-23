@@ -221,7 +221,6 @@ void usage() {
 int wordCount(string curlResult, string word) {
   string line;
   int count = 0;
-  cout << "no segfault" << endl;
   istringstream curlResultStream(curlResult);
   while (std::getline(curlResultStream, line)) {
     size_t found = line.find(word, 0); // first occurrence
@@ -230,7 +229,6 @@ int wordCount(string curlResult, string word) {
       found = line.find(word, found + 1); // next occurrence and all others
     }
   }
-  cout << "still none" << endl;
   return count;
 }
 

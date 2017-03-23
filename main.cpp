@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <curl/curl.h>
 
@@ -272,10 +273,10 @@ int main(int argc, char **argv) {
   vector<string> searchTerms = searchTermList.getLines();
   writeCSVWrapper outputFile("example.csv");
   outputFile.init();
-
-  // main program loop
   vector<MemoryStruct> curlResults;
   int running = 1;
+
+  // main program loop
   while (running) {
     vector<int> countResults;
     vector<string> curlResultsAsString;
@@ -292,14 +293,14 @@ int main(int argc, char **argv) {
         // every n search terms (# of total search terms, there is a new site)
       }
     }
-    for (int i = 0; i < countResults.size(); i++) {
-      for (int j = 0; j < sites.size(); j++) {
-        for (int k = 0; k < searchTerms.size(); k++) {
-          outputFile.writeLine("time", searchTerms[k], sites[j], countResults[i*searchTerms.size() + k]);
-        }
+    cout << "count results.size " << countResults.size() << endl;
+    for (int j = 0; j < sites.size(); j++) {
+      for (int k = 0; k < searchTerms.size(); k++) {
+        outputFile.writeLine("time", searchTerms[k], sites[j], countResults[j + k]);
       }
     }
     running = 0;
+    sleep(PERIOD_FETCH);
   }
 
   // debug output

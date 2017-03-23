@@ -283,7 +283,6 @@ int main(int argc, char **argv) {
       cout << sites[i] << endl;
       curlResults.push_back(runCurl(sites[i]));
       curlResultsAsString.push_back(curlResults[i].memory);
-      free(curlResults[i].memory);
     }
     for (int i = 0; i < curlResultsAsString.size(); i++) {
       for (int j = 0; j < searchTerms.size(); i++) {
@@ -312,5 +311,8 @@ int main(int argc, char **argv) {
   }
   for (int i = 0; i < sites.size(); i++) {
     cout << sites[i] << endl;
+  }
+  for (int i = 0; i < curlResults.size(); i++) {
+    free(curlResults[i].memory);
   }
 }

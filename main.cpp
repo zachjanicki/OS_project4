@@ -4,6 +4,12 @@
 #include <fstream>
 #include <sstream>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <curl/curl.h>
+
 using namespace std;
 
 class readConfigFile {
@@ -101,8 +107,109 @@ public:
   }
 };
 
+
+//libcurl struct and functions
+struct MemoryStruct {
+  char *memory;
+  size_t size;
+};
+
+static size_t
+WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+  size_t realsize = size * nmemb;
+  struct MemoryStruct *mem = (struct MemoryStruct *)userp;
+
+  mem->memory = (char *) realloc(mem->memory, mem->size + realsize + 1);
+  if(mem->memory == NULL) {
+    /* out of memory! */
+    printf("not enough memory (realloc returned NULL)\n");
+    return 0;
+  }
+
+  memcpy(&(mem->memory[mem->size]), contents, realsize);
+  mem->size += realsize;
+  mem->memory[mem->size] = 0;
+
+  return realsize;
+}
+
+struct MemoryStruct runCurl(string url) {
+  CURL *curl_handle;
+  CURLcode res;
+
+  struct MemoryStruct chunk;
+
+  chunk.memory = (char *) malloc(1);  /* will be grown as needed by the realloc above */
+  chunk.size = 0;    /* no data at this point */
+
+  curl_global_init(CURL_GLOBAL_ALL);
+
+  /* init the curl session */
+  curl_handle = curl_easy_init();
+
+  /* specify URL to get */
+  curl_easy_setopt(curl_handle, CURLOPT_URL, url.c_str());
+
+  /* send all data to this function  */
+  curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+
+  /* we pass our 'chunk' struct to the callback function */
+  curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&chunk);
+
+  /* some servers don't like requests that are made without a user-agent
+     field, so we provide one */
+  curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+
+  /* get it! */
+  res = curl_easy_perform(curl_handle);
+
+  /* check for errors */
+  if(res != CURLE_OK) {
+    fprintf(stderr, "curl_easy_perform() failed: %s\n",
+            curl_easy_strerror(res));
+  }
+  else {
+    /*
+     * Now, our chunk.memory points to a memory block that is chunk.size
+     * bytes big and contains the remote file.
+     *
+     * Do something nice with it!
+     */
+    curl_easy_cleanup(curl_handle);
+    curl_global_cleanup();
+    printf("%lu bytes retrieved\n", (long)chunk.size);
+    return chunk;
+  }
+
+  /* cleanup curl stuff */
+
+
+  //free(chunk.memory);
+
+  /* we're done with libcurl, so clean it up */
+
+  //return 0;
+}
+
+
 void usage() {
   cout << "Please provide a configuration file" << endl;
+}
+
+// function to count the words of a given keyword after a curl request
+int wordCount(string curlResult, string word) {
+  string line;
+  int count = 0;
+  istringstream curlResultStream(curlResult);
+  while (std::getline(curlResultStream, line)) {
+    size_t found = line.find(word, 0); // first occurrence
+    while (found != string::npos) {
+      count++;
+      found = line.find(word, found + 1); // next occurrence and all others
+    }
+  }
+  return count;
 }
 
 int main(int argc, char **argv) {
@@ -143,6 +250,15 @@ int main(int argc, char **argv) {
   readFileWrapper searchTermList(SEARCH_FILE);
   searchTermList.readFile();
   vector<string> searchTerms = searchTermList.getLines();
+  struct MemoryStruct curlInfo = runCurl("http://example.com");
+  string curlResult = curlInfo.memory;
+
+  // main program loop
+  /*
+  while (1) {
+
+  }
+  */
 
   // debug output
   cout << PERIOD_FETCH << endl;
@@ -156,5 +272,6 @@ int main(int argc, char **argv) {
   for (int i = 0; i < sites.size(); i++) {
     cout << sites[i] << endl;
   }
-
+  cout << wordCount(curlResult, "example") << endl;
+  free(curlInfo.memory);
 }

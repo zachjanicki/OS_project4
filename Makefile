@@ -1,2 +1,2 @@
 all:
-	g++ main.cpp -Wall
+	g++ main.cpp -Wall -lcurl

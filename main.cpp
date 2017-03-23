@@ -221,6 +221,7 @@ void usage() {
 int wordCount(string curlResult, string word) {
   string line;
   int count = 0;
+  cout << "no segfault" << endl;
   istringstream curlResultStream(curlResult);
   while (std::getline(curlResultStream, line)) {
     size_t found = line.find(word, 0); // first occurrence
@@ -229,6 +230,7 @@ int wordCount(string curlResult, string word) {
       found = line.find(word, found + 1); // next occurrence and all others
     }
   }
+  cout << "still none" << endl;
   return count;
 }
 
@@ -275,7 +277,8 @@ int main(int argc, char **argv) {
 
   // main program loop
   vector<MemoryStruct> curlResults;
-  while (1) {
+  int running = 1;
+  while (running) {
     vector<int> countResults;
     vector<string> curlResultsAsString;
     for (int i = 0; i < sites.size(); i++) {
@@ -285,9 +288,9 @@ int main(int argc, char **argv) {
       curlResultsAsString.push_back(curlResults[i].memory);
     }
     for (int i = 0; i < curlResultsAsString.size(); i++) {
-      for (int j = 0; j < searchTerms.size(); i++) {
-        cout << "no segfault yet" << endl;
-        countResults.push_back(wordCount(curlResultsAsString[i], searchTerms[j]));
+      for (int j = 0; j < searchTerms.size(); j++) {
+        int c = wordCount(curlResultsAsString[i], searchTerms[j]);
+        countResults.push_back(c);
         // every n search terms (# of total search terms, there is a new site)
       }
     }
@@ -298,6 +301,7 @@ int main(int argc, char **argv) {
         }
       }
     }
+    running = 0;
   }
 
   // debug output

@@ -107,6 +107,26 @@ public:
   }
 };
 
+class writeCSVWrapper {
+public:
+  writeCSVWrapper(string file) {
+    fileName = file;
+  }
+
+  string fileName;
+  void init() {
+    ofstream outfile;
+    outfile.open(fileName, std::ios_base::app);
+    outfile << "Time,Phrase,Site,Count" << endl;
+  }
+
+  void writeLine(string time, string phrase, string site, int count) {
+    ofstream outfile;
+    outfile.open(fileName, std::ios_base::app);
+    outfile << time << "," << phrase << "," << site << "," << count << endl;
+  }
+};
+
 
 //libcurl struct and functions
 struct MemoryStruct {
@@ -252,6 +272,8 @@ int main(int argc, char **argv) {
   vector<string> searchTerms = searchTermList.getLines();
   struct MemoryStruct curlInfo = runCurl("http://example.com");
   string curlResult = curlInfo.memory;
+  writeCSVWrapper outputFile("example.csv");
+  outputFile.init();
 
   // main program loop
   /*

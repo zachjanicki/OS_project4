@@ -9,6 +9,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+//#include "readConfigFile.h"
+//#include "readFileWrapper.h"
 
 
 #include <chrono>
@@ -16,6 +18,7 @@
 #include <curl/curl.h>
 
 using namespace std;
+
 
 class readConfigFile {
 public:
@@ -139,7 +142,7 @@ struct MemoryStruct {
   size_t size;
 };
 
-static size_t
+static size_t 
 WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
   size_t realsize = size * nmemb;
   struct MemoryStruct *mem = (struct MemoryStruct *)userp;
@@ -238,6 +241,11 @@ int wordCount(string curlResult, string word) {
   return count;
 }
 
+
+
+
+
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     usage();
@@ -290,6 +298,8 @@ int main(int argc, char **argv) {
   vector<string> searchTerms = searchTermList.getLines();
   vector<MemoryStruct> curlResults;
   int counter = 0;
+
+
   //time_t timer;
   std::chrono::time_point<std::chrono::system_clock> end;	
   string time;	
@@ -302,12 +312,19 @@ int main(int argc, char **argv) {
     outputFile.init();
     vector<int> countResults;
     vector<string> curlResultsAsString;
+
+
+
     for (size_t i = 0; i < sites.size(); i++) {
       // put one curling job into a thread and output to vector
       cout << sites[i] << endl;
       curlResults.push_back(runCurl(sites[i]));
       curlResultsAsString.push_back(curlResults[i].memory);
     }
+
+
+
+
     for (size_t i = 0; i < curlResultsAsString.size(); i++) {
       for (size_t j = 0; j < searchTerms.size(); j++) {
         int c = wordCount(curlResultsAsString[i], searchTerms[j]);

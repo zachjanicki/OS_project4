@@ -8,14 +8,118 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
+#include <pthread.h>
 
+//#include "readConfigFile.h"
+//#include "readFileWrapper.h"
+
+#include <chrono>
+#include <ctime>
 #include <curl/curl.h>
-
-#include "readConfigFile.h"
-#include "readFileWrapper.h"
 
 using namespace std;
 
+
+pthread_t * curlThreads;
+pthread_t * readThreads;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+class readConfigFile {
+public:
+  readConfigFile(string file) {
+    fileName = file;
+  }
+
+  string fileName;
+  vector<string> lines;
+  vector<string> params;
+  vector<string> values;
+
+  void readFile() {
+    ifstream infile(fileName);
+    string line;
+    while (getline(infile, line)) {
+      lines.push_back(line);
+    }
+  }
+
+  void parse() {
+    vector<string> linesVec = lines;
+    for (size_t i = 0; i < linesVec.size(); i++) {
+      stringstream tempStream(linesVec[i]);
+      vector<string> paramAndValue;
+      string temp;
+      int badParamFlag = 0;
+      while (getline(tempStream, temp, '=')) {
+        if (paramAndValue.size() == 0 && (temp != "PERIOD_FETCH" &&
+                                        temp != "NUM_FETCH" &&
+                                        temp != "NUM_PARSE" &&
+                                        temp != "SEARCH_FILE" &&
+                                        temp != "SITE_FILE")) {
+          badParamFlag = 1;
+        }
+        paramAndValue.push_back(temp);
+      }
+      if (!badParamFlag) {
+        params.push_back(paramAndValue[0]);
+        values.push_back(paramAndValue[1]);
+      } else {
+        cout << "Illegal parameter '" << paramAndValue[0] << "' given" << endl;
+      }
+    }
+    // check to make sure SEARCH_FILE and SITE_FILE are given
+    int searchFileFlag = 0;
+    int siteFileFlag = 0;
+    for (size_t i = 0; i < params.size(); i++) {
+      if (params[i] == "SEARCH_FILE") {
+        searchFileFlag = 1;
+      }
+      if (params[i] == "SITE_FILE") {
+        siteFileFlag = 1;
+      }
+    }
+    if (!searchFileFlag || !siteFileFlag) {
+      cout << "missing either SEARCH_FILE or SITE_FILE parameter" << endl;
+      exit(0);
+    }
+  }
+
+  vector<string> getLines() {
+    return lines;
+  }
+
+  vector<string> getParams() {
+    return params;
+  }
+
+  vector<string> getValues() {
+    return values;
+  }
+};
+
+class readFileWrapper {
+public:
+  readFileWrapper(string file) {
+    fileName = file;
+  }
+
+  string fileName;
+  vector<string> lines;
+
+  void readFile() {
+    ifstream infile(fileName);
+    string line;
+    while (getline(infile, line)) {
+      lines.push_back(line);
+    }
+  }
+
+  vector<string> getLines() {
+    return lines;
+  }
+};
 
 class writeCSVWrapper {
 public:
@@ -29,11 +133,11 @@ public:
     outfile.open(fileName, std::ios_base::app);
     outfile << "Time,Phrase,Site,Count" << endl;
   }
-  	
-  void writeLine(time_t time, string phrase, string site, int count) {
+
+  void writeLine(string time, string phrase, string site, int count) {
     ofstream outfile;
     outfile.open(fileName, std::ios_base::app);
-    outfile << time << "," << phrase << "," << site << "," << count << endl;
+    outfile << time <<  phrase << "," << site << "," << count << endl;
   }
 };
 
@@ -44,7 +148,7 @@ struct MemoryStruct {
   size_t size;
 };
 
-static size_t
+static size_t 
 WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
   size_t realsize = size * nmemb;
   struct MemoryStruct *mem = (struct MemoryStruct *)userp;
@@ -143,6 +247,11 @@ int wordCount(string curlResult, string word) {
   return count;
 }
 
+
+
+
+
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     usage();
@@ -196,6 +305,17 @@ int main(int argc, char **argv) {
   vector<MemoryStruct> curlResults;
   int counter = 0;
 
+  // pthread allocation
+
+  curlThreads = new pthread_t[NUM_FETCH];
+  readThreads = new pthread_t[NUM_PARSE];	  	  
+
+ 	
+
+  //time_t timer;
+  std::chrono::time_point<std::chrono::system_clock> end;	
+  string time;	
+
   // main program loop
   while (1) {
     counter++;
@@ -204,14 +324,19 @@ int main(int argc, char **argv) {
     outputFile.init();
     vector<int> countResults;
     vector<string> curlResultsAsString;
-	time_t timer;
-	
+
+
+
     for (size_t i = 0; i < sites.size(); i++) {
       // put one curling job into a thread and output to vector
       cout << sites[i] << endl;
       curlResults.push_back(runCurl(sites[i]));
       curlResultsAsString.push_back(curlResults[i].memory);
     }
+
+
+
+
     for (size_t i = 0; i < curlResultsAsString.size(); i++) {
       for (size_t j = 0; j < searchTerms.size(); j++) {
         int c = wordCount(curlResultsAsString[i], searchTerms[j]);
@@ -222,10 +347,13 @@ int main(int argc, char **argv) {
     cout << "count results.size " << countResults.size() << endl;
     for (size_t j = 0; j < sites.size(); j++) {
       for (size_t k = 0; k < searchTerms.size(); k++) {
-        outputFile.writeLine(time(&timer), searchTerms[k], sites[j], countResults[j + k]);
+		end = std::chrono::system_clock::now(); // get time
+		time_t now = std::chrono::system_clock::to_time_t(end);
+		time = ctime(&now); // cutting off endl
+		time[time.length() - 1] = ','; // adding comma before next parameter
+        outputFile.writeLine(time, searchTerms[k], sites[j], countResults[j + k]); // pass to write function
       }
     }
-	
     sleep(PERIOD_FETCH);
     //signal(SIGALRM, 0);
 	//alarm(PERIOD_FETCH);

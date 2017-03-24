@@ -8,7 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
+
+#include <chrono>
+#include <ctime>
 #include <curl/curl.h>
 
 using namespace std;
@@ -121,10 +125,10 @@ public:
     outfile << "Time,Phrase,Site,Count" << endl;
   }
 
-  void writeLine(time_t time, string phrase, string site, int count) {
+  void writeLine(string time, string phrase, string site, int count) {
     ofstream outfile;
     outfile.open(fileName, std::ios_base::app);
-    outfile << time << "," << phrase << "," << site << "," << count << endl;
+    outfile << time <<  phrase << "," << site << "," << count << endl;
   }
 };
 
@@ -286,7 +290,9 @@ int main(int argc, char **argv) {
   vector<string> searchTerms = searchTermList.getLines();
   vector<MemoryStruct> curlResults;
   int counter = 0;
-  time_t timer;	
+  //time_t timer;
+  std::chrono::time_point<std::chrono::system_clock> end;	
+  string time;	
 
   // main program loop
   while (1) {
@@ -312,10 +318,16 @@ int main(int argc, char **argv) {
     cout << "count results.size " << countResults.size() << endl;
     for (size_t j = 0; j < sites.size(); j++) {
       for (size_t k = 0; k < searchTerms.size(); k++) {
-        outputFile.writeLine(time(&timer), searchTerms[k], sites[j], countResults[j + k]);
+		end = std::chrono::system_clock::now(); // get time
+		time_t now = std::chrono::system_clock::to_time_t(end);
+		time = ctime(&now); // cutting off endl
+		time[time.length() - 1] = ','; // adding comma before next parameter
+        outputFile.writeLine(time, searchTerms[k], sites[j], countResults[j + k]); // pass to write function
       }
     }
     sleep(PERIOD_FETCH);
+    //signal(SIGALRM, 0);
+	//alarm(PERIOD_FETCH);
   }
 
   // debug output

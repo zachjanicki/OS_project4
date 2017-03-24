@@ -121,7 +121,7 @@ public:
     outfile << "Time,Phrase,Site,Count" << endl;
   }
 
-  void writeLine(string time, string phrase, string site, int count) {
+  void writeLine(time_t time, string phrase, string site, int count) {
     ofstream outfile;
     outfile.open(fileName, std::ios_base::app);
     outfile << time << "," << phrase << "," << site << "," << count << endl;
@@ -286,6 +286,7 @@ int main(int argc, char **argv) {
   vector<string> searchTerms = searchTermList.getLines();
   vector<MemoryStruct> curlResults;
   int counter = 0;
+  time_t timer;	
 
   // main program loop
   while (1) {
@@ -311,7 +312,7 @@ int main(int argc, char **argv) {
     cout << "count results.size " << countResults.size() << endl;
     for (size_t j = 0; j < sites.size(); j++) {
       for (size_t k = 0; k < searchTerms.size(); k++) {
-        outputFile.writeLine("time", searchTerms[k], sites[j], countResults[j + k]);
+        outputFile.writeLine(time(&timer), searchTerms[k], sites[j], countResults[j + k]);
       }
     }
     sleep(PERIOD_FETCH);

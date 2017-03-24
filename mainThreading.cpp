@@ -16,100 +16,6 @@
 
 using namespace std;
 
-/*class readConfigFile {
-public:
-  readConfigFile(string file) {
-    fileName = file;
-  }
-
-  string fileName;
-  vector<string> lines;
-  vector<string> params;
-  vector<string> values;
-
-  void readFile() {
-    ifstream infile(fileName);
-    string line;
-    while (getline(infile, line)) {
-      lines.push_back(line);
-    }
-  }
-
-  void parse() {
-    vector<string> linesVec = lines;
-    for (size_t i = 0; i < linesVec.size(); i++) {
-      stringstream tempStream(linesVec[i]);
-      vector<string> paramAndValue;
-      string temp;
-      int badParamFlag = 0;
-      while (getline(tempStream, temp, '=')) {
-        if (paramAndValue.size() == 0 && (temp != "PERIOD_FETCH" &&
-                                        temp != "NUM_FETCH" &&
-                                        temp != "NUM_PARSE" &&
-                                        temp != "SEARCH_FILE" &&
-                                        temp != "SITE_FILE")) {
-          badParamFlag = 1;
-        }
-        paramAndValue.push_back(temp);
-      }
-      if (!badParamFlag) {
-        params.push_back(paramAndValue[0]);
-        values.push_back(paramAndValue[1]);
-      } else {
-        cout << "Illegal parameter '" << paramAndValue[0] << "' given" << endl;
-      }
-    }
-    // check to make sure SEARCH_FILE and SITE_FILE are given
-    int searchFileFlag = 0;
-    int siteFileFlag = 0;
-    for (size_t i = 0; i < params.size(); i++) {
-      if (params[i] == "SEARCH_FILE") {
-        searchFileFlag = 1;
-      }
-      if (params[i] == "SITE_FILE") {
-        siteFileFlag = 1;
-      }
-    }
-    if (!searchFileFlag || !siteFileFlag) {
-      cout << "missing either SEARCH_FILE or SITE_FILE parameter" << endl;
-      exit(0);
-    }
-  }
-
-  vector<string> getLines() {
-    return lines;
-  }
-
-  vector<string> getParams() {
-    return params;
-  }
-
-  vector<string> getValues() {
-    return values;
-  }
-};
-
-class readFileWrapper {
-public:
-  readFileWrapper(string file) {
-    fileName = file;
-  }
-
-  string fileName;
-  vector<string> lines;
-
-  void readFile() {
-    ifstream infile(fileName);
-    string line;
-    while (getline(infile, line)) {
-      lines.push_back(line);
-    }
-  }
-
-  vector<string> getLines() {
-    return lines;
-  }
-};*/
 
 class writeCSVWrapper {
 public:
@@ -123,8 +29,8 @@ public:
     outfile.open(fileName, std::ios_base::app);
     outfile << "Time,Phrase,Site,Count" << endl;
   }
-
-  void writeLine(string time, string phrase, string site, int count) {
+  	
+  void writeLine(time_t time, string phrase, string site, int count) {
     ofstream outfile;
     outfile.open(fileName, std::ios_base::app);
     outfile << time << "," << phrase << "," << site << "," << count << endl;
@@ -298,6 +204,8 @@ int main(int argc, char **argv) {
     outputFile.init();
     vector<int> countResults;
     vector<string> curlResultsAsString;
+	time_t timer;
+	
     for (size_t i = 0; i < sites.size(); i++) {
       // put one curling job into a thread and output to vector
       cout << sites[i] << endl;
@@ -314,10 +222,13 @@ int main(int argc, char **argv) {
     cout << "count results.size " << countResults.size() << endl;
     for (size_t j = 0; j < sites.size(); j++) {
       for (size_t k = 0; k < searchTerms.size(); k++) {
-        outputFile.writeLine("time", searchTerms[k], sites[j], countResults[j + k]);
+        outputFile.writeLine(time(&timer), searchTerms[k], sites[j], countResults[j + k]);
       }
     }
+	
     sleep(PERIOD_FETCH);
+    //signal(SIGALRM, 0);
+	//alarm(PERIOD_FETCH);
   }
 
   // debug output

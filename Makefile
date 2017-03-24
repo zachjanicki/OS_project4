@@ -1,4 +1,8 @@
-all:
-	g++ -std=gnu++11 main.cpp -Wall -lcurl -o main
+all: site-tester
+	
+
+site-tester:
+	g++ -std=gnu++11 -static-libstdc++  -Wall main.cpp readConfigFile.h readFileWrapper.h -o site-tester -lcurl
+
 clean:
-	rm main
+	rm site-tester

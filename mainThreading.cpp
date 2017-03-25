@@ -28,6 +28,7 @@ pthread_t * curlThreads;
 pthread_t * readThreads;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 class readConfigFile {
 		public:
@@ -250,20 +251,39 @@ int wordCount(string curlResult, string word) {
 		return count;
 }
 
-void * producer(void *args) {
+void * producer(void *args, url) {
 
 	MemoryStruct html;	
 	pthread_mutex_lock(&mutex);
 	
 	html = runCurl(url);		
 		
+	buffer.push_back(html);
+	buffer.push_back(html.memory);
+	while (buffer.size() >= NUM_FETCH) {
 
+		pthread_cond_wait(&cond, &mutex);
+
+	}
+
+	// need to add item to buffer
+	pthread_cond_broadcast(&cond);
+	pthread_mutex_unlock(&mutex);
 }
 
 void * consumer(void *args) {
 
 	pthread_mutex_lock(&mutex);
+	while (buffer.size() == 0) {
 
+		pthread_cond_wait(&cond, &mutex);
+
+	}
+
+	// removie item from buffer
+	pthread_mutex_broadcast(&cond);
+	// consume it
+	pthread_mutex_unlock(&mutex);
 
 }
 
@@ -347,12 +367,9 @@ int main(int argc, char **argv) {
 						// put one curling job into a thread and output to vector
 						cout << sites[i] << endl;
 
-						for (int i = 0; i < NUM_FETCH; i++)	
+						for (int i = 0; i < NUM_FETCH; i++)	// create threads
 							pthread_create(&curlThreads, NULL, (void *) producer, NULL);
 
-
-						curlResults.push_back(runCurl(sites[i]));
-						curlResultsAsString.push_back(curlResults[i].memory);
 				}
 
 				for (size_t i = 0; i < curlResultsAsString.size(); i++) {

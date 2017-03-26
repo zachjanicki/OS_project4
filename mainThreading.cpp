@@ -21,10 +21,9 @@
 using namespace std;
 
 
-vector<MemoryStruct> producerBuffer;
-vector<MemoryStruct> consumerBuffer;
 
-vector<string> sites = siteList.getLines();
+queue<string> consumerBuffer;
+queue<string> producerBuffer;
 
 pthread_t * curlThreads;
 pthread_t * readThreads;
@@ -260,14 +259,8 @@ void * producer(void *args, url) {
 	
 	html = runCurl(url);		
 		
-	consumerBuffer.push_back(html);
-	while (producerBuffer.size() == 0) {
-
-		pthread_cond_wait(&cond, &mutex);
-
-	}
-
-	
+	consumerBuffer.push_back(html.memory);
+		
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
 }
@@ -281,9 +274,8 @@ void * consumer(void *args) {
 
 	}
 
-	// removie item from buffer
+	consumerBuffer.pop();
 	pthread_mutex_broadcast(&cond);
-	// consume it
 	pthread_mutex_unlock(&mutex);
 
 }
@@ -346,8 +338,10 @@ int main(int argc, char **argv) {
 		curlThreads = new pthread_t[NUM_FETCH];
 		readThreads = new pthread_t[NUM_PARSE];		  
 
-
-
+		temp = siteList.getLines();	
+		for (int i = 0; i < temp.size(); i++) {
+			producerBuffer.push_back(temp[i]);
+		}
 
 		//time_t timer;
 		std::chrono::time_point<std::chrono::system_clock> end;	

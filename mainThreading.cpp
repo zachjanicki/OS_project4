@@ -3,7 +3,7 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
-
+#include <queue>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -252,14 +252,14 @@ int wordCount(string curlResult, string word) {
 		return count;
 }
 
-void * producer(void *args, url) {
+void * producer(void *args, string url) {
 
 	MemoryStruct html;	
 	pthread_mutex_lock(&mutex);
 	
 	html = runCurl(url);		
 		
-	consumerBuffer.push_back(html.memory);
+	consumerBuffer.push(html.memory);
 		
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
@@ -338,9 +338,9 @@ int main(int argc, char **argv) {
 		curlThreads = new pthread_t[NUM_FETCH];
 		readThreads = new pthread_t[NUM_PARSE];		  
 
-		temp = siteList.getLines();	
-		for (int i = 0; i < temp.size(); i++) {
-			producerBuffer.push_back(temp[i]);
+		vector<string> sites = siteList.getLines();	
+		for (int i = 0; i < sites.size(); i++) {
+			producerBuffer.push(sites[i]);
 		}
 
 		//time_t timer;
@@ -404,7 +404,9 @@ int main(int argc, char **argv) {
 		   }
 		   */
 		// free memory
+		/*
 		for (size_t i = 0; i < curlResults.size(); i++) {
 				free(curlResults[i].memory);
 		}
+		*/
 }

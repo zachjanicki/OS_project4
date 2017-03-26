@@ -21,7 +21,9 @@
 using namespace std;
 
 
-vector<MemoryStruct> buffer;
+vector<MemoryStruct> producerBuffer;
+vector<MemoryStruct> consumerBuffer;
+
 vector<string> sites = siteList.getLines();
 
 pthread_t * curlThreads;
@@ -258,15 +260,14 @@ void * producer(void *args, url) {
 	
 	html = runCurl(url);		
 		
-	buffer.push_back(html);
-	buffer.push_back(html.memory);
-	while (buffer.size() >= NUM_FETCH) {
+	consumerBuffer.push_back(html);
+	while (producerBuffer.size() == 0) {
 
 		pthread_cond_wait(&cond, &mutex);
 
 	}
 
-	// need to add item to buffer
+	
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
 }
@@ -274,7 +275,7 @@ void * producer(void *args, url) {
 void * consumer(void *args) {
 
 	pthread_mutex_lock(&mutex);
-	while (buffer.size() == 0) {
+	while (consumerBuffer.size() == 0) {
 
 		pthread_cond_wait(&cond, &mutex);
 

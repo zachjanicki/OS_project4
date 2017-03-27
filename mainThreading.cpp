@@ -22,14 +22,18 @@ using namespace std;
 
 
 
-queue<string> consumerBuffer;
+queue<struct MemoryStruct> consumerBuffer;
 queue<string> producerBuffer;
 
 pthread_t * curlThreads;
 pthread_t * readThreads;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond;
+int ret = pthread_cond_init(&cond, NULL);
+int CONSUMER_BUFFER_MAX_SIZE;
+vector<string> SEARCH_TERMS;
+int counter = 0;
 
 class readConfigFile {
 		public:
@@ -141,7 +145,7 @@ class writeCSVWrapper {
 
 				void writeLine(string time, string phrase, string site, int count) {
 						ofstream outfile;
-						outfile.open(fileName, std::ios_base::app);
+						outfile.open(fileName, std::fstream::app);
 						outfile << time <<  phrase << "," << site << "," << count << endl;
 				}
 };
@@ -151,6 +155,7 @@ class writeCSVWrapper {
 struct MemoryStruct {
 		char *memory;
 		size_t size;
+		string siteName;
 };
 
 static size_t 
@@ -217,7 +222,7 @@ struct MemoryStruct runCurl(string url) {
 				 */
 				curl_easy_cleanup(curl_handle);
 				curl_global_cleanup();
-				printf("%lu bytes retrieved\n", (long)chunk.size);
+				//printf("%lu bytes retrieved\n", (long)chunk.size);
 				//return chunk;
 		}
 
@@ -234,7 +239,7 @@ struct MemoryStruct runCurl(string url) {
 
 
 void usage() {
-		cout << "Please provide a configuration file" << endl;
+	cout << "Please provide a configuration file" << endl;
 }
 
 // function to count the words of a given keyword after a curl request
@@ -252,17 +257,24 @@ int wordCount(string curlResult, string word) {
 		return count;
 }
 
-void * producer(void *args, string url) {
-
+void * producer(void *args) {
 	MemoryStruct html;	
 	pthread_mutex_lock(&mutex);
+	string site = producerBuffer.front();
 	
-	html = runCurl(url);		
-		
-	consumerBuffer.push(html.memory);
+	html = runCurl(site);
+	html.siteName = site;
+	producerBuffer.pop();		
+	
+	while (consumerBuffer.size() == (size_t) CONSUMER_BUFFER_MAX_SIZE) {
+		pthread_cond_wait(&cond, &mutex);
+	}
+			
+	consumerBuffer.push(html);
 		
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
+	return NULL;
 }
 
 void * consumer(void *args) {
@@ -273,16 +285,43 @@ void * consumer(void *args) {
 		pthread_cond_wait(&cond, &mutex);
 
 	}
-
+	
+	struct MemoryStruct curlResults = consumerBuffer.front();
 	consumerBuffer.pop();
-	pthread_mutex_broadcast(&cond);
-	pthread_mutex_unlock(&mutex);
 
+	vector <int> countResults;
+	for (size_t i = 0; i < SEARCH_TERMS.size(); i++) {
+		int count = wordCount(curlResults.memory, SEARCH_TERMS[i]); 
+		countResults.push_back(count);
+	} 	
+	
+	string csvFileName = to_string(counter) + ".csv";
+	writeCSVWrapper outputFile(csvFileName);
+	
+	string time;
+	std::chrono::time_point<std::chrono::system_clock> end;	
+	end = std::chrono::system_clock::now(); // get time
+	time_t now = std::chrono::system_clock::to_time_t(end);
+	time = ctime(&now); // cutting off endl
+	time[time.length() - 1] = ','; // adding comma before next parameter
+	for (size_t i = 0; i < SEARCH_TERMS.size(); i++) {
+
+		outputFile.writeLine(time, SEARCH_TERMS[i], curlResults.siteName, countResults[i]); // pass to write function
+	}
+	pthread_cond_broadcast(&cond);
+	pthread_mutex_unlock(&mutex);
+	return NULL;
+}
+
+void sigIntHandle(int a) {
+    cout << "exiting program" << endl;
+	exit(0);
 }
 
 
-
 int main(int argc, char **argv) {
+		
+		signal(SIGINT, sigIntHandle);
 		if (argc != 2) {
 				usage();
 				exit(1);
@@ -318,6 +357,7 @@ int main(int argc, char **argv) {
 								exit(1);
 						}
 						NUM_PARSE = stoi(values[i]);
+						CONSUMER_BUFFER_MAX_SIZE = NUM_PARSE;
 				} else if (params[i] == "SEARCH_FILE") {
 						SEARCH_FILE = values[i];
 				} else if (params[i] == "SITE_FILE") {
@@ -331,24 +371,19 @@ int main(int argc, char **argv) {
 		readFileWrapper searchTermList(SEARCH_FILE);
 		searchTermList.readFile();
 		vector<string> searchTerms = searchTermList.getLines();
-		int counter = 0;
-
-		// pthread allocation
-
-		curlThreads = new pthread_t[NUM_FETCH];
-		readThreads = new pthread_t[NUM_PARSE];		  
+		SEARCH_TERMS = searchTerms;	  
 
 		vector<string> sites = siteList.getLines();	
-		for (int i = 0; i < sites.size(); i++) {
-			producerBuffer.push(sites[i]);
-		}
 
 		//time_t timer;
 		std::chrono::time_point<std::chrono::system_clock> end;	
 		string time;	
-
 		// main program loop
-		while (1) {
+
+		while (1) {				
+				for (size_t i = 0; i < sites.size(); i++) {
+					producerBuffer.push(sites[i]);
+				}
 				counter++;
 				string csvFileName = to_string(counter) + ".csv";
 				writeCSVWrapper outputFile(csvFileName);
@@ -356,57 +391,22 @@ int main(int argc, char **argv) {
 				vector<int> countResults;
 				vector<string> curlResultsAsString;
 
-
-
-				for (size_t i = 0; i < sites.size(); i++) {
-						// put one curling job into a thread and output to vector
-						cout << sites[i] << endl;
-
-						for (int i = 0; i < NUM_FETCH; i++)	// create threads
-							pthread_create(&curlThreads, NULL, (void *) producer, NULL);
-
+				curlThreads = new pthread_t[NUM_FETCH];
+				readThreads = new pthread_t[NUM_PARSE];	
+				for (int i = 0; i < NUM_FETCH; i++) {	// create threads
+					pthread_create(&curlThreads[i], NULL, &producer, NULL);
 				}
-
-				for (size_t i = 0; i < curlResultsAsString.size(); i++) {
-						for (size_t j = 0; j < searchTerms.size(); j++) {
-								int c = wordCount(curlResultsAsString[i], searchTerms[j]);
-								countResults.push_back(c);
-								// every n search terms (# of total search terms, there is a new site)
-						}
+				for (int i = 0; i < NUM_PARSE; i++) {
+					pthread_create(&readThreads[i], NULL, &consumer, NULL);
 				}
-				cout << "count results.size " << countResults.size() << endl;
-				for (size_t j = 0; j < sites.size(); j++) {
-						for (size_t k = 0; k < searchTerms.size(); k++) {
-								end = std::chrono::system_clock::now(); // get time
-								time_t now = std::chrono::system_clock::to_time_t(end);
-								time = ctime(&now); // cutting off endl
-								time[time.length() - 1] = ','; // adding comma before next parameter
-								outputFile.writeLine(time, searchTerms[k], sites[j], countResults[j + k]); // pass to write function
-						}
+				
+				for (int i = 0; i < NUM_FETCH; i++) {
+					pthread_join(curlThreads[i], NULL);
+					pthread_join(readThreads[i], NULL);
 				}
+				delete curlThreads;
+				delete readThreads;
 				sleep(PERIOD_FETCH);
-				//signal(SIGALRM, //function handler);
-				//alarm(PERIOD_FETCH);
 		}
-
-		// debug output
-		/*
-		   cout << PERIOD_FETCH << endl;
-		   cout << NUM_FETCH << endl;
-		   cout << NUM_PARSE << endl;
-		   cout << SEARCH_FILE << endl;
-		   cout << SITE_FILE << endl;
-		   for (int i = 0; i < searchTerms.size(); i++) {
-		   cout << searchTerms[i] << endl;
-		   }
-		   for (int i = 0; i < sites.size(); i++) {
-		   cout << sites[i] << endl;
-		   }
-		   */
-		// free memory
-		/*
-		for (size_t i = 0; i < curlResults.size(); i++) {
-				free(curlResults[i].memory);
-		}
-		*/
+		return 0;
 }

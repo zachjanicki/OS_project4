@@ -263,7 +263,7 @@ void * producer(void *args) {
 	html = runCurl(site);
 	html.siteName = site;
 	producerBuffer.pop();		
-	
+	// wait for buffer to empty	
 	while (consumerBuffer.size() == (size_t) CONSUMER_BUFFER_MAX_SIZE) {
 		pthread_cond_wait(&cond, &mutex);
 	}
@@ -278,6 +278,7 @@ void * producer(void *args) {
 void * consumer(void *args) {
 
 	pthread_mutex_lock(&mutex);
+	// wait for buffer to have items
 	while (consumerBuffer.size() == 0) {
 
 		pthread_cond_wait(&cond, &mutex);
@@ -286,13 +287,14 @@ void * consumer(void *args) {
 	
 	struct MemoryStruct curlResults = consumerBuffer.front();
 	consumerBuffer.pop();
-
+	//count results
 	vector <int> countResults;
 	for (size_t i = 0; i < SEARCH_TERMS.size(); i++) {
 		int count = wordCount(curlResults.memory, SEARCH_TERMS[i]); 
 		countResults.push_back(count);
 	} 	
 	
+	//save the date in a csv file
 	string csvFileName = to_string(counter) + ".csv";
 	writeCSVWrapper outputFile(csvFileName);
 	
@@ -303,8 +305,7 @@ void * consumer(void *args) {
 	time = ctime(&now); // cutting off endl
 	time[time.length() - 1] = ','; // adding comma before next parameter
 	for (size_t i = 0; i < SEARCH_TERMS.size(); i++) {
-
-		outputFile.writeLine(time, SEARCH_TERMS[i], curlResults.siteName, countResults[i]); // pass to write function
+		outputFile.writeLine(time, SEARCH_TERMS[i], curlResults.siteName, countResults[i]);
 	}
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
@@ -324,7 +325,7 @@ int main(int argc, char **argv) {
 		usage();
 		exit(1);
 	}
-		// default values for parameters
+	// default values for parameters
 	int PERIOD_FETCH = 180;
 	int NUM_FETCH = 1;
 	int NUM_PARSE = 1;
@@ -387,13 +388,14 @@ int main(int argc, char **argv) {
 		outputFile.init();
 		vector<int> countResults;
 		vector<string> curlResultsAsString;
-
+		
+		// allocate memory for threads
 		curlThreads = new pthread_t[NUM_FETCH];
 		readThreads = new pthread_t[NUM_PARSE];	
-		for (int i = 0; i < NUM_FETCH; i++) {	// create threads
+		for (int i = 0; i < NUM_FETCH; i++) {	// create producers
 			pthread_create(&curlThreads[i], NULL, &producer, NULL);
 		}
-		for (int i = 0; i < NUM_PARSE; i++) {
+		for (int i = 0; i < NUM_PARSE; i++) {   // create consumers
 			pthread_create(&readThreads[i], NULL, &consumer, NULL);
 		}
 		
@@ -401,6 +403,7 @@ int main(int argc, char **argv) {
 			pthread_join(curlThreads[i], NULL);
 			pthread_join(readThreads[i], NULL);
 		}
+		// free allocated thread memory
 		delete curlThreads;
 		delete readThreads;
 		sleep(PERIOD_FETCH);
